@@ -1,0 +1,91 @@
+%%% Cone filtering with extension from the previous functions
+
+Nx=8;
+Ny=8;
+Nt=8;
+
+wm=pi;
+
+%%% 3D DoA signal
+psi=45*pi/180; % Angle from z-axis (elevation)   
+phi=45*pi/180; % Angle from x-axis (azimuth)
+
+elv = pi/2 - atan(sin(psi));
+azi = phi;
+theta_x = acos(cos(elv)*cos(azi));
+theta_y = atan(tan(elv)/sin(azi));
+epsilon=10*pi/180;
+
+a=tan(theta_x-epsilon);
+b=tan(theta_x+epsilon);
+c=tan(theta_y-epsilon);
+d=tan(theta_y+epsilon);
+
+chn1n3=zeros(Nx,Nt);
+chn2n3=zeros(Ny,Nt);
+
+for n1 = 1:Nx;
+    x=(n1-Nx/2);
+    for n3 = 1:Nt;
+         z=(n3-Nt/2);
+        if x == 0 && z ==0
+            chn1n3(n1,n3) = ((b-a)*wm^2)/(4*a*b*pi^2);
+        elseif x ~= 0 && ((x/a)+z) ~= 0 && ((x/b)+z) ~= 0
+            chn1n3(n1,n3) = (1/(2*x*pi^2)) * ((1-cos(wm*((x/a)+z)))/((x/a)+z) - ((1-cos(wm*((x/b)+z)))/((x/b)+z)));
+        elseif ((x/b)+z) == 0 && ((x/a)+z) ~= 0;
+            chn1n3(n1,n3) = (1/(2*x*pi^2))*((1-cos(wm*((x/a)+z)))/((x/a)+z));
+        elseif ((x/b)+z) ~= 0 && ((x/a)+z) == 0;
+            chn1n3(n1,n3) = (1/(2*x*pi^2))*(-(1-cos(wm*((x/b)+z)))/((x/b)+z));
+        elseif x == 0 && z ~= 0
+            chn1n3(n1,n3) = ((b-a)/(2*a*b*pi^2*z^2)) * (cos(wm*z) + wm*z*sin(wm*z)-1);
+        else
+            fprintf('error\n');
+        end
+    end
+end
+
+for n2 = 1:Ny;
+    y=(n2-Ny/2);
+    for n3 = 1:Nt;
+         z=(n3-Nt/2);
+        if y == 0 && z ==0
+            chn2n3(n2,n3) = ((d-c)*wm^2)/(4*c*d*pi^2);
+        elseif y ~= 0 && ((y/c)+z) ~= 0 && ((y/d)+z) ~= 0
+            chn2n3(n2,n3) = (1/(2*y*pi^2)) * ((1-cos(wm*((y/c)+z)))/((y/c)+z) - ((1-cos(wm*((y/d)+z)))/((y/d)+z)));
+        elseif ((y/d)+z) == 0 && ((y/c)+z) ~= 0;
+            chn2n3(n2,n3) = (1/(2*y*pi^2))*((1-cos(wm*((y/c)+z)))/((y/c)+z));
+        elseif ((y/d)+z) ~= 0 && ((y/c)+z) == 0;
+            chn2n3(n2,n3) = (1/(2*y*pi^2))*(-(1-cos(wm*((y/d)+z)))/((y/d)+z));
+        elseif y == 0 && z ~= 0
+            chn2n3(n2,n3) = ((d-c)/(2*c*d*pi^2*z^2)) * (cos(wm*z) + wm*z*sin(wm*z)-1);
+        else
+            fprintf('error\n');
+        end
+    end
+end
+
+%%% Normalising
+chn1n3 = chn1n3/max(max(abs(chn1n3)));
+chn2n3 = chn2n3/max(max(abs(chn2n3)));
+
+%%% Signal flow graph
+
+p_2t = zeros(Nt,1);
+
+%generate 2d signal using a slice from the 3d signal
+% implement the signal flow graph and see the output as the vector passing
+% at the filter DOA
+for t = 1:size(sig2dt,2);
+    for y = 1:size(sig3dt,2);
+    h_1 = zeros(size(chn1n3,2),1);
+    for Nct = 1:size(chn1n3,2);
+        for x = 1:size(sig3dt,1);
+            tmp = sig2dt(x,t) * fhn1n3(x,size(fhn1n3,2)-Nct+1);
+            h_1(Nct) = h_1(Nct) + tmp; 
+        end
+    end
+    p_2t(y,t) = sum(h_1);
+end
+
+figure
+plot(p_2t);
